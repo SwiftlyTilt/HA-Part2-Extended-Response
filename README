@@ -1,0 +1,16 @@
+**This Readme is included in the root of the Source Code file as well.**
+
+
+For my extended response, I decided to use a VBA script that is the heart of an Excel spreadsheet 
+used by my co-workers at my current job. I have written more complex codes, but I am quite proud 
+of this one, because it has eliminated a major source of stress and lost productivity for my team. 
+Part of our job is to maintain the administrative details for thousands of accounts.  Unfortunately, 
+the application designed by our IT department for this purpose emphasizes security over efficiency, 
+and as a result, updates can only be made for one account at a time. Fortunately, our main server 
+has a SQL interface, which allows bulk updates. My co-workers are not familiar with coding, and were 
+afraid to use the interface. This VBA code allows my co-workers to submit the details they wish to 
+update into the Excel spreadsheet, and at a push of a button, generates the corresponding SQL update 
+query, error free. Tasks that used to take hours, now only take minutes. I am happy that I was able 
+to make something that makes work less stressful for the people I see every weekday. 
+ 
+ 
