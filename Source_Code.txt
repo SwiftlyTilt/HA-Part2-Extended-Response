@@ -1,0 +1,981 @@
+'For my extended response, I decided to use a VBA script that is the heart of an Excel spreadsheet
+'used by my co-workers at my current job. I have written more complex codes, but I am quite proud
+'of this one, because it has eliminated a major source of stress and lost productivity for my team.
+'Part of our job is to maintain the administrative details for thousands of accounts.  Unfortunately,
+'the application designed by our IT department for this purpose emphasizes security over efficiency,
+'and as a result, updates can only be made for one account at a time. Fortunately, our main server
+'has a SQL interface, which allows bulk updates. My co-workers are not familiar with coding, and were
+'afraid to use the interface. This VBA code allows my co-workers to submit the details they wish to
+'update into the Excel spreadsheet, and at a push of a button, generates the corresponding SQL update
+'query, error free. Tasks that used to take hours, now only take minutes. I am happy that I was able
+'to make something that makes work less stressful for the people I see every weekday.
+
+
+
+Public Sub PRODUCT_ID()
+Dim chka As Integer
+Dim chkb As Integer
+'
+' PRODUCT_ID Macro
+' Macro recorded 4/6/2011 by Jason E White
+'
+' This section sorts and assigns product id's
+'
+Sheets("Main").Select
+Set rng = Range("A2:E500")
+rng.Sort Key1:=rng.Cells(1, 2), Order1:=xlAscending, Header:=xlNo, _
+    OrderCustom:=1, MatchCase:=False, Orientation:=xlTopToBottom, _
+    DataOption1:=xlSortNormal
+Set i = rng.Cells(1, 1)
+
+chka = WorksheetFunction.CountA(Range("A2:A500"))
+chkb = WorksheetFunction.CountA(Range("B2:B500"))
+
+If (chka <> chkb) Then
+MsgBox "Not all Product ID's are assigned. Please check list.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+ElseIf (chka = 0) Then
+MsgBox "There are no accounts to assign. Goodbye.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+End If
+    
+Sheets("Output").Select
+Columns("A:F").Select
+Selection.Delete Shift:=xlToLeft
+Range("A1").Select
+ActiveCell.FormulaR1C1 = "Query 1: Assign Product Name"
+Range("B1").Select
+ActiveCell.FormulaR1C1 = "Query 2: Assign Product ID in POD (Account Def2)"
+Range("A1:B1").Select
+Selection.Font.Bold = True
+With Selection.Interior
+    .ColorIndex = 35
+    .Pattern = xlSolid
+End With
+
+Range("A2").Select
+
+Set j = Range("A2")
+
+Do While Not IsEmpty(i)
+Set i1 = i.Offset(1, 0)
+Set ia = i.Offset(0, 1)
+Set ib = i.Offset(1, 1)
+Set j1 = j.Offset(1, 0)
+Set j2 = j.Offset(2, 0)
+Set j3 = j.Offset(3, 0)
+Set j4 = j.Offset(4, 0)
+
+ra = Application.VLookup(i, rng, 2, False)
+
+j.Value = "update pcs_wms_asscl_rel"
+j1.Value = "set prod_id = '" & ra & "',"
+j2.Value = "user_id =USER, date_time = CURRENT year to fraction(3)" 'upgrade made 10/04/2011
+j3.Value = "where cl_id in ("
+Set j = j4
+If ib.Value = ia.Value Then
+    Do While ib.Value = ia.Value
+        Set i1 = i.Offset(1, 0)
+        Set ia = i.Offset(0, 1)
+        Set ib = i.Offset(1, 1)
+        Set j1 = j.Offset(1, 0)
+        Set j2 = j.Offset(2, 0)
+        Set j3 = j.Offset(3, 0)
+        Set j4 = j.Offset(4, 0)
+        If ia.Value = ib.Value Then
+            j.Value = "''" & i.Value & "',"
+            Set i = i1
+            Set j = j1
+        Else
+            j.Value = "''" & i.Value & "'"
+            j1.Value = ")"
+            j2.Value = "AND last_day = '12/31/9999'"
+            j3.Value = ";"
+            Set i = i1
+            Set j = j4
+        End If
+    Loop
+Else
+    Set j1 = j.Offset(1, 0)
+    Set j2 = j.Offset(2, 0)
+    Set j3 = j.Offset(3, 0)
+    Set j4 = j.Offset(4, 0)
+    j.Value = "''" & i.Value & "'"
+    j1.Value = ")"
+    j2.Value = "AND last_day = '12/31/9999'"
+    j3.Value = ";"
+    Set i = i1
+    Set j = j4
+End If
+
+Loop
+'
+' This section sorts and assigns PROD ID to POD (ACCTDEF2)
+'
+rng.Sort Key1:=rng.Cells(1, 1), Order1:=xlAscending, Header:=xlNo, _
+    OrderCustom:=1, MatchCase:=False, Orientation:=xlTopToBottom, _
+    DataOption1:=xlSortNormal
+Set i = rng.Cells(1, 1)
+
+Sheets("Output").Select
+Set j = Range("B2")
+Set j1 = j.Offset(1, 0)
+Set j2 = j.Offset(2, 0)
+Set j3 = j.Offset(3, 0)
+Set j4 = j.Offset(4, 0)
+Set j5 = j.Offset(5, 0)
+Set j6 = j.Offset(6, 0)
+Set j7 = j.Offset(7, 0)
+Set j8 = j.Offset(8, 0)
+
+j.Value = "update client_groups"
+j1.Value = "set acct_def2 ="
+j2.Value = "(   select a.prod_id"
+j3.Value = "    from pcs_wms_asscl_rel a, clients c"
+j4.Value = "    where c.cl_id = a.cl_id"
+j5.Value = "    AND c.cl_id = client_groups.client_id"
+j6.Value = "    AND a.last_day = '12/31/9999')" 'upgrade made 10/07/2011
+j7.Value = "where client_id in("
+Set j = j8
+
+Do While Not IsEmpty(i)
+Set i1 = i.Offset(1, 0)
+Set j1 = j.Offset(1, 0)
+Set j2 = j.Offset(2, 0)
+Set j3 = j.Offset(3, 0)
+
+If IsEmpty(i1) Then
+    j.Value = "''" & i.Value & "'"
+    j1.Value = ")"
+    j2.Value = ";"
+Set i = i1
+Set j = j3
+Else
+    j.Value = "''" & i.Value & "',"
+Set i = i1
+Set j = j1
+End If
+Loop
+
+rng.Sort Key1:=rng.Cells(1, 1), Order1:=xlAscending, Header:=xlNo, _
+    OrderCustom:=1, MatchCase:=False, Orientation:=xlTopToBottom, _
+    DataOption1:=xlSortNormal
+
+Columns("A:B").Select
+Columns("A:B").EntireColumn.AutoFit
+Range("A2").Select
+    
+Exit_SQLQuery:
+Exit Sub
+    
+End Sub
+
+Public Sub FAMILY_CODE()
+Dim chka As Integer
+Dim chkb As Integer
+'
+' FAMILY_CODE Macro
+' Macro recorded 4/6/2011 by Jason E White
+'
+
+'
+' This section sorts and assigns FAMILY to POD
+'
+
+Sheets("Main").Select
+Set rng = Range("A2:E500")
+rng.Sort Key1:=rng.Cells(1, 3), Order1:=xlAscending, Header:=xlNo, _
+    OrderCustom:=1, MatchCase:=False, Orientation:=xlTopToBottom, _
+    DataOption1:=xlSortNormal
+Set i = rng.Cells(1, 1)
+
+chka = WorksheetFunction.CountA(Range("A2:A500"))
+chkb = WorksheetFunction.CountA(Range("C2:C500"))
+
+If (chka <> chkb) Then
+MsgBox "Not all Family Codes are assigned. Please check list.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+ElseIf (chka = 0) Then
+MsgBox "There are no accounts to assign. Goodbye.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+End If
+    
+Sheets("Output").Select
+Columns("A:F").Select
+Selection.Delete Shift:=xlToLeft
+Range("A1").Select
+ActiveCell.FormulaR1C1 = "Query 1: Assign Family to POD"
+Range("B1").Select
+ActiveCell.FormulaR1C1 = "Query 2: Assign Family to GIM2"
+Range("A1:B1").Select
+Selection.Font.Bold = True
+With Selection.Interior
+    .ColorIndex = 35
+    .Pattern = xlSolid
+End With
+
+Range("A2").Select
+
+Set j = Range("A2")
+
+Do While Not IsEmpty(i)
+Set i1 = i.Offset(1, 0)
+Set ia = i.Offset(0, 2)
+Set ib = i.Offset(1, 2)
+Set j1 = j.Offset(1, 0)
+Set j2 = j.Offset(2, 0)
+Set j3 = j.Offset(3, 0)
+
+ra = Application.VLookup(i, rng, 3, False)
+
+
+If ra = "NULL" Then
+    j.Value = "update clients"
+    j1.Value = "set family = NULL"
+    j2.Value = "where cl_id in ("
+    Set j = j3
+    
+Else
+    j.Value = "update clients"
+    j1.Value = "set family = '" & ra & "'"
+    j2.Value = "where cl_id in ("
+    Set j = j3
+
+End If
+
+If ib.Value = ia.Value Then
+    Do While ib.Value = ia.Value
+        Set i1 = i.Offset(1, 0)
+        Set ia = i.Offset(0, 2)
+        Set ib = i.Offset(1, 2)
+        Set j1 = j.Offset(1, 0)
+        Set j2 = j.Offset(2, 0)
+        Set j3 = j.Offset(3, 0)
+        If ia.Value = ib.Value Then
+            j.Value = "''" & i.Value & "',"
+            Set i = i1
+            Set j = j1
+        Else
+            j.Value = "''" & i.Value & "'"
+            j1.Value = ")"
+            j2.Value = ";"
+            Set i = i1
+            Set j = j3
+        End If
+    Loop
+Else
+    Set j1 = j.Offset(1, 0)
+    Set j2 = j.Offset(2, 0)
+    Set j3 = j.Offset(3, 0)
+    j.Value = "''" & i.Value & "'"
+    j1.Value = ")"
+    j2.Value = ";"
+    Set i = i1
+    Set j = j3
+End If
+
+Loop
+
+'
+' This section sorts and assigns FAMILY to GIM2
+'
+
+Set i = rng.Cells(1, 1)
+    
+Sheets("Output").Select
+Set j = Range("B2")
+
+Do While Not IsEmpty(i)
+Set i1 = i.Offset(1, 0)
+Set ia = i.Offset(0, 2)
+Set ib = i.Offset(1, 2)
+Set j1 = j.Offset(1, 0)
+Set j2 = j.Offset(2, 0)
+Set j3 = j.Offset(3, 0)
+Set j4 = j.Offset(4, 0)
+
+ra = Application.VLookup(i, rng, 3, False)
+
+'j.Value = "update pcs_wms_asscl_rel"
+'j1.Value = "set wms_cl_id = '" & ra & "'"
+'j2.Value = "where cl_id in ("
+'Set j = j3
+
+If ra = "NULL" Then
+    j.Value = "update pcs_wms_asscl_rel"
+    j1.Value = "set wms_cl_id = 'UNDEFINE',"
+    j2.Value = "user_id =USER, date_time = CURRENT year to fraction(3)" 'upgrade made 10/04/2011
+    j3.Value = "where cl_id in ("
+    Set j = j4
+    
+Else
+    j.Value = "update pcs_wms_asscl_rel"
+    j1.Value = "set wms_cl_id = '" & ra & "',"
+    j2.Value = "user_id =USER, date_time = CURRENT year to fraction(3)" 'upgrade made 10/04/2011
+    j3.Value = "where cl_id in ("
+    Set j = j4
+
+End If
+
+If ib.Value = ia.Value Then
+    Do While ib.Value = ia.Value
+        Set i1 = i.Offset(1, 0)
+        Set ia = i.Offset(0, 2)
+        Set ib = i.Offset(1, 2)
+        Set j1 = j.Offset(1, 0)
+        Set j2 = j.Offset(2, 0)
+        Set j3 = j.Offset(3, 0)
+        If ia.Value = ib.Value Then
+            j.Value = "''" & i.Value & "',"
+            Set i = i1
+            Set j = j1
+        Else
+            j.Value = "''" & i.Value & "'"
+            j1.Value = ")"
+            j2.Value = ";"
+            Set i = i1
+            Set j = j3
+        End If
+    Loop
+Else
+    Set j1 = j.Offset(1, 0)
+    Set j2 = j.Offset(2, 0)
+    Set j3 = j.Offset(3, 0)
+    j.Value = "''" & i.Value & "'"
+    j1.Value = ")"
+    j2.Value = ";"
+    Set i = i1
+    Set j = j3
+End If
+
+Loop
+
+rng.Sort Key1:=rng.Cells(1, 1), Order1:=xlAscending, Header:=xlNo, _
+    OrderCustom:=1, MatchCase:=False, Orientation:=xlTopToBottom, _
+    DataOption1:=xlSortNormal
+    
+Columns("A:B").Select
+Columns("A:B").EntireColumn.AutoFit
+Range("A2").Select
+
+Exit_SQLQuery:
+Exit Sub
+    
+End Sub
+Public Sub ACCTDEF3()
+Dim chka As Integer
+Dim chkb As Integer
+'
+' ACCTDEF3 Macro
+' Macro recorded 4/6/2011 by Jason E White
+'
+
+Sheets("Main").Select
+Set rng = Range("A2:E500")
+rng.Sort Key1:=rng.Cells(1, 4), Order1:=xlAscending, Header:=xlNo, _
+    OrderCustom:=1, MatchCase:=False, Orientation:=xlTopToBottom, _
+    DataOption1:=xlSortNormal
+Set i = rng.Cells(1, 1)
+
+chka = WorksheetFunction.CountA(Range("A2:A500"))
+chkb = WorksheetFunction.CountA(Range("D2:D500"))
+
+If (chka <> chkb) Then
+MsgBox "Not all Account Def3's are assigned. Please check list.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+ElseIf (chka = 0) Then
+MsgBox "There are no accounts to assign. Goodbye.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+End If
+
+Sheets("Output").Select
+Columns("A:F").Select
+Selection.Delete Shift:=xlToLeft
+Range("A1").Select
+ActiveCell.FormulaR1C1 = "Query 1: Assign Account Def3"
+Range("A1").Select
+Selection.Font.Bold = True
+With Selection.Interior
+    .ColorIndex = 35
+    .Pattern = xlSolid
+End With
+
+Range("A2").Select
+
+Set j = Range("A2")
+    
+Do While Not IsEmpty(i)
+Set i1 = i.Offset(1, 0)
+Set ia = i.Offset(0, 3)
+Set ib = i.Offset(1, 3)
+Set j1 = j.Offset(1, 0)
+Set j2 = j.Offset(2, 0)
+Set j3 = j.Offset(3, 0)
+
+ra = Application.VLookup(i, rng, 4, False)
+
+If ra = "NULL" Then
+j.Value = "update client_groups"
+j1.Value = "set acct_def3 = NULL"
+j2.Value = "where client_id in ("
+Set j = j3
+
+Else
+j.Value = "update client_groups"
+j1.Value = "set acct_def3 = '" & ra & "'"
+j2.Value = "where client_id in ("
+Set j = j3
+
+End If
+
+
+If ib.Value = ia.Value Then
+    Do While ib.Value = ia.Value
+        Set i1 = i.Offset(1, 0)
+        Set ia = i.Offset(0, 3)
+        Set ib = i.Offset(1, 3)
+        Set j1 = j.Offset(1, 0)
+        Set j2 = j.Offset(2, 0)
+        Set j3 = j.Offset(3, 0)
+        If ia.Value = ib.Value Then
+            j.Value = "''" & i.Value & "',"
+            Set i = i1
+            Set j = j1
+        Else
+            j.Value = "''" & i.Value & "'"
+            j1.Value = ")"
+            j2.Value = ";"
+            Set i = i1
+            Set j = j3
+        End If
+    Loop
+Else
+    Set j1 = j.Offset(1, 0)
+    Set j2 = j.Offset(2, 0)
+    Set j3 = j.Offset(3, 0)
+    j.Value = "''" & i.Value & "'"
+    j1.Value = ")"
+    j2.Value = ";"
+    Set i = i1
+    Set j = j3
+End If
+
+Loop
+
+rng.Sort Key1:=rng.Cells(1, 1), Order1:=xlAscending, Header:=xlNo, _
+    OrderCustom:=1, MatchCase:=False, Orientation:=xlTopToBottom, _
+    DataOption1:=xlSortNormal
+
+Columns("A").Select
+Columns("A").EntireColumn.AutoFit
+Range("A2").Select
+
+Exit_SQLQuery:
+Exit Sub
+    
+End Sub
+
+Public Sub ACCTDEF2()
+Dim chka As Integer
+'
+' ACCTDEF2 Macro
+' Macro recorded 4/7/2011 by Jason E White
+'
+
+Sheets("Main").Select
+Set rng = Range("A2:E500")
+rng.Sort Key1:=rng.Cells(1, 1), Order1:=xlAscending, Header:=xlNo, _
+    OrderCustom:=1, MatchCase:=False, Orientation:=xlTopToBottom, _
+    DataOption1:=xlSortNormal
+Set i = rng.Cells(1, 1)
+
+chka = WorksheetFunction.CountA(Range("A2:A500"))
+
+If (chka = 0) Then
+MsgBox "There are no accounts to assign. Goodbye.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+End If
+
+
+Sheets("Output").Select
+Columns("A:F").Select
+Selection.Delete Shift:=xlToLeft
+Range("A1").Select
+ActiveCell.FormulaR1C1 = "Query 1: Assign Product ID in POD (Account Def2)"
+Range("A1").Select
+Selection.Font.Bold = True
+With Selection.Interior
+    .ColorIndex = 35
+    .Pattern = xlSolid
+End With
+
+Range("A2").Select
+
+Set j = Range("A2")
+
+Set j1 = j.Offset(1, 0)
+Set j2 = j.Offset(2, 0)
+Set j3 = j.Offset(3, 0)
+Set j4 = j.Offset(4, 0)
+Set j5 = j.Offset(5, 0)
+Set j6 = j.Offset(6, 0)
+Set j7 = j.Offset(7, 0)
+Set j8 = j.Offset(8, 0)
+
+j.Value = "update client_groups"
+j1.Value = "set acct_def2 ="
+j2.Value = "(   select a.prod_id"
+j3.Value = "    from pcs_wms_asscl_rel a, clients c"
+j4.Value = "    where c.cl_id = a.cl_id"
+j5.Value = "    AND c.cl_id = client_groups.client_id"
+j6.Value = "    AND a.last_day = '12/31/9999')" 'upgrade made 10/07/2011
+j7.Value = "where client_id in("
+Set j = j8
+
+Do While Not IsEmpty(i)
+Set i1 = i.Offset(1, 0)
+Set j1 = j.Offset(1, 0)
+Set j2 = j.Offset(2, 0)
+Set j3 = j.Offset(3, 0)
+
+If IsEmpty(i1) Then
+    j.Value = "''" & i.Value & "'"
+    j1.Value = ")"
+    j2.Value = ";"
+Set i = i1
+Set j = j3
+Else
+    j.Value = "''" & i.Value & "',"
+Set i = i1
+Set j = j1
+End If
+Loop
+
+Columns("A").Select
+Columns("A").EntireColumn.AutoFit
+Range("A2").Select
+
+Exit_SQLQuery:
+Exit Sub
+    
+End Sub
+
+Public Sub FOOTNOTE()
+Dim chka As Integer
+Dim chkb As Integer
+'
+' FOOTNOTE Macro
+' Macro recorded 4/7/2011 by Jason E White
+'
+Sheets("Main").Select
+Set rng = Range("A2:E500")
+Set bm = Range("H2") 'entrance to backdoor
+rng.Sort Key1:=rng.Cells(1, 5), Order1:=xlAscending, Header:=xlNo, _
+    OrderCustom:=1, MatchCase:=False, Orientation:=xlTopToBottom, _
+    DataOption1:=xlSortNormal
+Set i = rng.Cells(1, 1)
+
+chka = WorksheetFunction.CountA(Range("A2:A500"))
+chkb = WorksheetFunction.CountA(Range("E2:E500"))
+
+If (chka <> chkb) Then
+MsgBox "Not all Footnotes are assigned. Please check list.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+ElseIf (chka = 0) Then
+MsgBox "There are no accounts to assign. Goodbye.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+End If
+
+Sheets("Output").Select
+Columns("A:F").Select
+Selection.Delete Shift:=xlToLeft
+Range("A1").Select
+If bm.Value = "bm" Then 'backdoor
+ActiveCell.FormulaR1C1 = "Query 1: Assign Benchmark"
+Else
+ActiveCell.FormulaR1C1 = "Query 1: Assign Footnote"
+End If
+Range("A1").Select
+Selection.Font.Bold = True
+With Selection.Interior
+    .ColorIndex = 35
+    .Pattern = xlSolid
+End With
+'Columns("A").Select
+'Columns("A").EntireColumn.AutoFit
+
+Range("A2").Select
+
+Set j = Range("A2")
+
+Do While Not IsEmpty(i)
+Set i1 = i.Offset(1, 0)
+Set ia = i.Offset(0, 4)
+Set ib = i.Offset(1, 4)
+Set j1 = j.Offset(1, 0)
+Set j2 = j.Offset(2, 0)
+Set j3 = j.Offset(3, 0)
+Set j4 = j.Offset(4, 0)
+Set j5 = j.Offset(5, 0) 'upgrade made 10/04/2011
+
+ra = Application.VLookup(i, rng, 5, False)
+
+If bm.Value <> "bm" Then 'backdoor
+'-----------------------------------------------------------------------'
+If ra = "NULL" Then
+    j.Value = "update pcs_wms_asscl_rel"
+    j1.Value = "set footnote = NULL,"
+    j2.Value = "user_id =USER, date_time = CURRENT year to fraction(3)" 'upgrade made 10/04/2011
+    j3.Value = "where cl_id in ("
+    Set j = j4
+    
+ElseIf Len(ra) <= 62 Then
+    j.Value = "update pcs_wms_asscl_rel"
+    j1.Value = "set footnote = '" & ra & "',"
+    j2.Value = "user_id =USER, date_time = CURRENT year to fraction(3)" 'upgrade made 10/04/2011
+    j3.Value = "where cl_id in ("
+    Set j = j4
+    
+ElseIf Len(ra) > 62 Then
+    ral = Left(ra, 59)
+    rar = Right(ra, Len(ra) - 59)
+    j.Value = "update pcs_wms_asscl_rel"
+    j1.Value = "set user_id =USER, date_time = CURRENT year to fraction(3)," 'upgrade made 10/04/2011
+    j2.Value = "footnote = '" & ral & "’ ||"
+    j3.Value = "''" & rar & "'"
+    j4.Value = "where cl_id in ("
+    Set j = j5
+
+End If
+
+If ib.Value = ia.Value Then
+    Do While ib.Value = ia.Value
+        Set i1 = i.Offset(1, 0)
+        Set ia = i.Offset(0, 4)
+        Set ib = i.Offset(1, 4)
+        Set j1 = j.Offset(1, 0)
+        Set j2 = j.Offset(2, 0)
+        Set j3 = j.Offset(3, 0)
+        Set j4 = j.Offset(4, 0)
+        If ia.Value = ib.Value Then
+            j.Value = "''" & i.Value & "',"
+            Set i = i1
+            Set j = j1
+        Else
+            j.Value = "''" & i.Value & "'"
+            j1.Value = ")"
+            j2.Value = "AND last_day = '12/31/9999'" 'upgrade made 10/04/2011
+            j3.Value = ";"
+            Set i = i1
+            Set j = j4
+        End If
+    Loop
+Else
+    Set j1 = j.Offset(1, 0)
+    Set j2 = j.Offset(2, 0)
+    Set j3 = j.Offset(3, 0)
+    Set j4 = j.Offset(4, 0)
+    j.Value = "''" & i.Value & "'"
+    j1.Value = ")"
+    j2.Value = "AND last_day = '12/31/9999'" 'upgrade made 10/04/2011
+    j3.Value = ";"
+    Set i = i1
+    Set j = j4
+End If
+
+Else 'backdoor
+
+If ra = "NULL" Then
+j.Value = "update openperf"
+j1.Value = "set index_a = NULL"
+j2.Value = "where his_class = 'TOTAL'"
+j3.Value = "AND cl_id in ("
+Set j = j4
+If ib.Value = ia.Value Then
+    Do While ib.Value = ia.Value
+        Set i1 = i.Offset(1, 0)
+        Set ia = i.Offset(0, 4)
+        Set ib = i.Offset(1, 4)
+        Set j1 = j.Offset(1, 0)
+        Set j2 = j.Offset(2, 0)
+        Set j3 = j.Offset(3, 0)
+        If ia.Value = ib.Value Then
+            j.Value = "''" & i.Value & "',"
+            Set i = i1
+            Set j = j1
+        Else
+            j.Value = "''" & i.Value & "'"
+            j1.Value = ")"
+            j2.Value = ";"
+            Set i = i1
+            Set j = j3
+        End If
+    Loop
+Else
+    Set j1 = j.Offset(1, 0)
+    Set j2 = j.Offset(2, 0)
+    Set j3 = j.Offset(3, 0)
+    j.Value = "''" & i.Value & "'"
+    j1.Value = ")"
+    j2.Value = ";"
+    Set i = i1
+    Set j = j3
+End If
+Else
+j.Value = "update openperf"
+j1.Value = "set index_a = '" & ra & "'"
+j2.Value = "where his_class = 'TOTAL'"
+j3.Value = "AND cl_id in ("
+Set j = j4
+If ib.Value = ia.Value Then
+    Do While ib.Value = ia.Value
+        Set i1 = i.Offset(1, 0)
+        Set ia = i.Offset(0, 4)
+        Set ib = i.Offset(1, 4)
+        Set j1 = j.Offset(1, 0)
+        Set j2 = j.Offset(2, 0)
+        Set j3 = j.Offset(3, 0)
+        If ia.Value = ib.Value Then
+            j.Value = "''" & i.Value & "',"
+            Set i = i1
+            Set j = j1
+        Else
+            j.Value = "''" & i.Value & "'"
+            j1.Value = ")"
+            j2.Value = ";"
+            Set i = i1
+            Set j = j3
+        End If
+    Loop
+Else
+    Set j1 = j.Offset(1, 0)
+    Set j2 = j.Offset(2, 0)
+    Set j3 = j.Offset(3, 0)
+    j.Value = "''" & i.Value & "'"
+    j1.Value = ")"
+    j2.Value = ";"
+    Set i = i1
+    Set j = j3
+End If
+End If
+End If
+
+Loop
+
+
+
+Columns("A").Select
+Columns("A").EntireColumn.AutoFit
+Range("A1").Select
+
+rng.Sort Key1:=rng.Cells(1, 1), Order1:=xlAscending, Header:=xlNo, _
+    OrderCustom:=1, MatchCase:=False, Orientation:=xlTopToBottom, _
+    DataOption1:=xlSortNormal
+
+Exit_SQLQuery:
+Exit Sub
+    
+End Sub
+Sub EVERYTHING_NOFOOT()
+Dim chka As Integer
+Dim chkb As Integer
+Dim chkc As Integer
+Dim chkd As Integer
+'
+' EVERYTHING_NOFOOT Macro
+' Macro recorded 4/7/2011 by Jason E White
+'
+
+Sheets("Main").Select
+Set bm = Range("H2") 'entrance to backdoor
+
+chka = WorksheetFunction.CountA(Range("A2:A500"))
+chkb = WorksheetFunction.CountA(Range("B2:B500"))
+chkc = WorksheetFunction.CountA(Range("C2:C500"))
+chkd = WorksheetFunction.CountA(Range("D2:D500"))
+
+If (chka <> chkb Or chka <> chkc Or chka <> chkd) Then
+MsgBox "Not all Fields are populated. Please check list.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+ElseIf (chka = 0) Then
+MsgBox "There are no accounts to assign. Goodbye.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+End If
+
+
+
+
+    Call PRODUCT_ID
+    Sheets("Output").Select
+    Columns("A:A").Select
+    Selection.Copy
+    Sheets("Other").Select
+    Range("A1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    Sheets("Output").Select
+    Columns("B:B").Select
+    Selection.Copy
+    Sheets("Other").Select
+    Range("E1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    Call ACCTDEF3
+    Sheets("Output").Select
+    Columns("A:A").Select
+    Selection.Copy
+    Sheets("Other").Select
+    Range("B1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    Call FAMILY_CODE
+    Sheets("Output").Select
+    Columns("A:A").Select
+    Selection.Copy
+    Sheets("Other").Select
+    Range("C1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    Sheets("Output").Select
+    Columns("B:B").Select
+    Selection.Copy
+    Sheets("Other").Select
+    Range("D1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    '
+    Cells.Select
+    Selection.Copy
+    Sheets("Output").Select
+    Cells.Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    Range("A1").Select
+    ActiveCell.FormulaR1C1 = "Query 1: Assign Product Name"
+    Range("B1").Select
+    ActiveCell.FormulaR1C1 = "Query 2: Assign Account Def3"
+    Range("C1").Select
+    ActiveCell.FormulaR1C1 = "Query 3: Assign Family to POD"
+    Range("D1").Select
+    ActiveCell.FormulaR1C1 = "Query 4: Assign Family to GIM2"
+    Range("E1").Select
+    ActiveCell.FormulaR1C1 = "Query 5: Assign Product ID in POD (Account Def2)"
+    Sheets("Other").Select
+    Columns("A:F").Select
+    Selection.Delete Shift:=xlToLeft
+    Sheets("Output").Select
+    Range("A1").Select
+    
+Exit_SQLQuery:
+Exit Sub
+    
+End Sub
+
+Sub EVERYTHING_FOOT()
+Dim chka As Integer
+Dim chkb As Integer
+Dim chkc As Integer
+Dim chkd As Integer
+Dim chke As Integer
+'
+' EVERYTHING_FOOT Macro
+' Macro recorded 4/7/2011 by Jason E White
+'
+
+Sheets("Main").Select
+Set bm = Range("H2") 'entrance to backdoor
+
+chka = WorksheetFunction.CountA(Range("A2:A500"))
+chkb = WorksheetFunction.CountA(Range("B2:B500"))
+chkc = WorksheetFunction.CountA(Range("C2:C500"))
+chkd = WorksheetFunction.CountA(Range("D2:D500"))
+chke = WorksheetFunction.CountA(Range("E2:E500"))
+
+If (chka <> chkb Or chka <> chkc Or chka <> chkd Or chka <> chke) Then
+MsgBox "Not all Fields are populated. Please check list.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+ElseIf (chka = 0) Then
+MsgBox "There are no accounts to assign. Goodbye.", vbOKOnly, "WHAT?"
+GoTo Exit_SQLQuery
+End If
+
+    Call PRODUCT_ID
+    Sheets("Output").Select
+    Columns("A:A").Select
+    Selection.Copy
+    Sheets("Other").Select
+    Range("A1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    Sheets("Output").Select
+    Columns("B:B").Select
+    Selection.Copy
+    Sheets("Other").Select
+    Range("E1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    Call ACCTDEF3
+    Sheets("Output").Select
+    Columns("A:A").Select
+    Selection.Copy
+    Sheets("Other").Select
+    Range("B1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    Call FAMILY_CODE
+    Sheets("Output").Select
+    Columns("A:A").Select
+    Selection.Copy
+    Sheets("Other").Select
+    Range("C1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    Sheets("Output").Select
+    Columns("B:B").Select
+    Selection.Copy
+    Sheets("Other").Select
+    Range("D1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    Call FOOTNOTE
+    Sheets("Output").Select
+    Columns("A:A").Select
+    Selection.Copy
+    Sheets("Other").Select
+    Range("F1").Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    '
+    Cells.Select
+    Selection.Copy
+    Sheets("Output").Select
+    Cells.Select
+    ActiveSheet.Paste
+    Application.CutCopyMode = False
+    Range("A1").Select
+    ActiveCell.FormulaR1C1 = "Query 1: Assign Product Name"
+    Range("B1").Select
+    ActiveCell.FormulaR1C1 = "Query 2: Assign Account Def3"
+    Range("C1").Select
+    ActiveCell.FormulaR1C1 = "Query 3: Assign Family to POD"
+    Range("D1").Select
+    ActiveCell.FormulaR1C1 = "Query 4: Assign Family to GIM2"
+    Range("E1").Select
+    ActiveCell.FormulaR1C1 = "Query 5: Assign Product ID in POD (Account Def2)"
+    Range("F1").Select
+    If bm.Value = "bm" Then
+    ActiveCell.FormulaR1C1 = "Query 6: Assign Benchmark"
+    Else
+    ActiveCell.FormulaR1C1 = "Query 6: Assign Footnote"
+    End If
+    Sheets("Other").Select
+    Columns("A:F").Select
+    Selection.Delete Shift:=xlToLeft
+    Sheets("Output").Select
+    Range("A1").Select
+    
+Exit_SQLQuery:
+Exit Sub
+    
+End Sub
+
